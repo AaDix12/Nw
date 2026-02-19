@@ -9,7 +9,6 @@ from Script import script
 from database.users_chats_db import db
 from utils import check_shortner
 import json
-import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
@@ -59,16 +58,12 @@ MESSAGES = {
     'MAIN_SETTINGS': "<b>ᴄʜᴀɴɢᴇ ʏᴏᴜʀ ꜱᴇᴛᴛɪɴɢꜱ ᴀꜱ ʏᴏᴜ ᴡᴀɴᴛ ⚙:</b>",
     'ERROR': "❌ Aɴ ᴇʀʀᴏʀ ᴏᴄᴄᴜʀʀᴇᴅ. Pʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ.",
     'CHOOSE_SHORTNER': "<b>ᴄʜᴏᴏꜱᴇ ꜱʜᴏʀᴛɴᴇʀ ᴀɴᴅ ᴄʜᴀɴɢᴇ ᴛʜᴇ ᴠᴀʟᴜᴇꜱ ᴀꜱ ʏᴏᴜ ᴡᴀɴᴛ ✅</b>",
-    'BROADCAST_STARTED': "<b>📢 Bʀᴏᴀᴅᴄᴀꜱᴛ Mᴇꜱꜱᴀɢᴇ Sᴛᴀʀᴛᴇᴅ</b>",
     'PREMIUM_MODE': (
         "<b>👑 ᴘʀᴇᴍɪᴜᴍ ᴍᴏᴅᴇ ⚙\n\n"
-        "ʏᴏᴜ ᴄᴀɴ ᴍᴀɴᴀɢᴇ ᴘʀᴇᴍɪᴜᴍ ᴜsᴇʀs, ᴀᴅᴅ/ʀᴇᴍᴏᴠᴇ ꜱᴜʙsᴄʀɪᴘᴛɪᴏɴs ᴀɴᴅ ʙʀᴏᴀᴅᴄᴀsᴛ ꜰʀᴏᴍ ʜᴇʀᴇ ✅\n"
+        "ʏᴏᴜ ᴄᴀɴ ᴍᴀɴᴀɢᴇ ᴘʀᴇᴍɪᴜᴍ ᴜsᴇʀs, ᴀᴅᴅ/ʀᴇᴍᴏᴠᴇ ꜱᴜʙsᴄʀɪᴘᴛɪᴏɴs ꜰʀᴏᴍ ʜᴇʀᴇ ✅\n"
         "ᴄʜᴏᴏꜱᴇ ꜰʀᴏᴍ ʙᴇʟᴏᴡ 👇</b>"
     )
 }
-
-chat_ids = ["-1002213447148", "-1002244057599", "-1002151372918", "-1001657350576", "-1001623282553"]
-
 
 @Client.on_message(filters.command("custom_settings") & filters.user(ADMINS))
 async def settings(client, message):
@@ -127,10 +122,7 @@ def build_group_settings_keyboard(grp_search: bool, file_delete: bool) -> Inline
     file_delete_btn = BUTTON_TEXT['FILE_DELETE_ENABLED'] if file_delete else BUTTON_TEXT['FILE_DELETE_DISABLED']
     return InlineKeyboardMarkup([
         [InlineKeyboardButton(grp_btn, callback_data="toggle_search")],
-        [
-            InlineKeyboardButton("ʀᴇsᴜʟᴛ ᴘᴀɢᴇ", callback_data="edit_mode"),
-            InlineKeyboardButton("ʙʀᴏᴀᴅᴄᴀsᴛ", callback_data="start_broadcast")
-        ],
+        [InlineKeyboardButton("ʀᴇsᴜʟᴛ ᴘᴀɢᴇ", callback_data="edit_mode")],
         [InlineKeyboardButton(file_delete_btn, callback_data="toggle_file_delete")],
         [InlineKeyboardButton(BUTTON_TEXT['BACK'], callback_data="back_to_main")]
     ])
@@ -220,10 +212,7 @@ def build_premium_mode_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton("➕ ᴀᴅᴅ ᴘʀᴇᴍɪᴜᴍ", callback_data="pm_add_user"),
             InlineKeyboardButton("➖ ʀᴇᴍᴏᴠᴇ ᴘʀᴇᴍɪᴜᴍ", callback_data="pm_remove_user")
         ],
-        [
-            InlineKeyboardButton("👥 ᴛᴏᴛᴀʟ ᴜsᴇʀs", callback_data="pm_total_users"),
-            InlineKeyboardButton("📢 ʙʀᴏᴀᴅᴄᴀsᴛ", callback_data="pm_broadcast")
-        ],
+        [InlineKeyboardButton("👥 ᴛᴏᴛᴀʟ ᴜsᴇʀs", callback_data="pm_total_users")],
         [InlineKeyboardButton(BUTTON_TEXT['BACK'], callback_data="back_to_main")]
     ])
 
@@ -1243,40 +1232,6 @@ async def handle_edit_time(query, db, client, **kwargs):
             pass
 
 
-async def handle_start_broadcast(query, db, client, script, chat_ids, **kwargs):
-    """Execute broadcast to all users"""
-    await query.message.edit(MESSAGES['BROADCAST_STARTED'])
-    
-    success = failed = 0
-    
-    for chat_id in map(int, chat_ids):
-        try:
-            # Delete previous broadcast if exists
-            last_id = await db.get_last_broadcast(chat_id)
-            if last_id:
-                try:
-                    await client.delete_messages(chat_id, last_id)
-                except Exception:
-                    pass
-            
-            # Send new broadcast
-            msg = await client.send_message(chat_id, script.HELP_INFO)
-            await db.set_last_broadcast(chat_id, msg.id)
-            success += 1
-            
-        except Exception as e:
-            failed += 1
-            logger.error(f"Broadcast failed for {chat_id}: {e}")
-    
-    await query.message.edit(
-        f"<b>✅ Bʀᴏᴀᴅᴄᴀꜱᴛ Cᴏᴍᴘʟᴇᴛᴇᴅ\n\n"
-        f"• Sᴜᴄᴄᴇꜱꜱ: {success}\n• Fᴀɪʟᴇᴅ: {failed}</b>",
-        reply_markup=build_back_button_keyboard("group_settings")
-    )
-    
-    logger.info(f"Broadcast completed: {success} success, {failed} failed")
-
-
 async def handle_export_settings(query, db, client, **kwargs):
     """Export all settings as a JSON file"""
     try:
@@ -1861,92 +1816,4 @@ async def handle_pm_total_users(query, db, client, **kwargs):
             pass
 
 
-async def handle_pm_broadcast(query, db, client, **kwargs):
-    """Broadcast a message to all active premium users"""
-    msg = None
-    try:
-        user_id = query.from_user.id
 
-        await query.message.edit(
-            "<b>📢 Pʀᴇᴍɪᴜᴍ Bʀᴏᴀᴅᴄᴀsᴛ\n\n"
-            "Sᴇɴᴅ ᴛʜᴇ ᴍᴇssᴀɢᴇ ʏᴏᴜ ᴡᴀɴᴛ ᴛᴏ ʙʀᴏᴀᴅᴄᴀsᴛ:\n\n"
-            "<blockquote>Oʀ sᴇɴᴅ /cancel ᴛᴏ ᴄᴀɴᴄᴇʟ ᴛᴀsᴋ</blockquote></b>"
-        )
-
-        msg = await client.listen(
-            chat_id=query.message.chat.id,
-            filters=filters.user(user_id),
-            timeout=120
-        )
-
-        if msg.text and msg.text.strip().lower() == '/cancel':
-            await msg.delete()
-            await query.message.edit(
-                "<b>✋ Bʀᴏᴀᴅᴄᴀsᴛ Cᴀɴᴄᴇʟʟᴇᴅ!</b>",
-                reply_markup=build_back_button_keyboard("premium_mode")
-            )
-            return
-
-        b_msg = msg
-        status_msg = await query.message.edit("<b>📢 Bʀᴏᴀᴅᴄᴀsᴛɪɴɢ ᴛᴏ Pʀᴇᴍɪᴜᴍ Usᴇʀs...</b>")
-        total_users = await db.total_premium_users_count()
-        done = success = failed = 0
-        users = await db.get_all_premium_users()
-
-        async for user in users:
-            data = await db.get_user(user['id'])
-            if data and data.get("expiry_time"):
-                try:
-                    from pyrogram.errors import FloodWait
-                    await b_msg.copy(chat_id=int(user['id']))
-                    success += 1
-                except FloodWait as e:
-                    await asyncio.sleep(e.value)
-                    try:
-                        await b_msg.copy(chat_id=int(user['id']))
-                        success += 1
-                    except:
-                        failed += 1
-                except:
-                    failed += 1
-                done += 1
-                if done % 20 == 0:
-                    try:
-                        await status_msg.edit(
-                            f"<b>📢 Bʀᴏᴀᴅᴄᴀsᴛ ɪɴ Pʀᴏɢʀᴇss...\n\n"
-                            f"Tᴏᴛᴀʟ: {total_users}\n"
-                            f"Dᴏɴᴇ: {done} / {total_users}\n"
-                            f"Sᴜᴄᴄᴇss: {success} | Fᴀɪʟᴇᴅ: {failed}</b>"
-                        )
-                    except:
-                        pass
-
-        await msg.delete()
-        await status_msg.edit(
-            f"<b>✅ Bʀᴏᴀᴅᴄᴀsᴛ Cᴏᴍᴘʟᴇᴛᴇᴅ!\n\n"
-            f"Tᴏᴛᴀʟ: {total_users}\n"
-            f"Sᴜᴄᴄᴇss: {success} | Fᴀɪʟᴇᴅ: {failed}</b>",
-            reply_markup=build_back_button_keyboard("premium_mode")
-        )
-
-        logger.info(f"Admin {user_id} broadcast to {done} premium users (success: {success}, failed: {failed})")
-
-    except ListenerTimeout:
-        await query.message.edit(
-            "<b>⏱️ Tɪᴍᴇᴏᴜᴛ Exᴘɪʀᴇᴅ! Pʟᴇᴀsᴇ ᴛʀʏ ᴀɢᴀɪɴ.</b>",
-            reply_markup=build_back_button_keyboard("premium_mode")
-        )
-    except Exception as e:
-        logger.error(f"Error in handle_pm_broadcast: {e}", exc_info=True)
-        try:
-            if msg:
-                await msg.delete()
-        except:
-            pass
-        try:
-            await query.message.edit(
-                MESSAGES['ERROR'],
-                reply_markup=build_back_button_keyboard("premium_mode")
-            )
-        except:
-            pass
