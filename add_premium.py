@@ -1,5 +1,4 @@
 import pytz
-import os
 import asyncio
 from datetime import datetime
 from info import *
