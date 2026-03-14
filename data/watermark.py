@@ -239,20 +239,3 @@ async def wm_callback(client: Client, cq: CallbackQuery):
         case "wm_back":
             text, keyboard = await settings_panel(user_id, client.db)
             await cq.message.edit_text(text, parse_mode=enums.ParseMode.HTML, reply_markup=keyboard)
-
-
-# ── Text input handler ───────────────────────────────────────
-
-@Bot.on_message(filters.private & admin & filters.text
-                & ~filters.command(["addmark", "wesettings", "gen_link"]))
-async def wm_text_input(client: Client, message: Message):
-    user_id = message.from_user.id
-    s = await client.db.get_wm_settings(user_id)
-    if s.get("__waiting__") == "text":
-        new_text = message.text.strip()
-        await client.db.update_wm_settings(user_id, "text", new_text)
-        await client.db.update_wm_settings(user_id, "__waiting__", None)
-        await message.reply_text(
-            f"✅ <b>ᴡᴀᴛᴇʀᴍᴀʀᴋ ᴛᴇxᴛ sᴇᴛ:</b> <code>{new_text}</code>",
-            parse_mode=enums.ParseMode.HTML, quote=True
-        )
